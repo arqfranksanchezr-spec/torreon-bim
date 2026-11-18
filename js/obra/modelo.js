@@ -140,3 +140,24 @@ export async function comprimirFoto(file, lado = 1600, calidad = 0.75) {
   canvas.getContext("2d").drawImage(bmp, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL("image/jpeg", calidad);
 }
+
+// Reduce una captura del visor (PNG) a JPEG liviano para guardarla como miniatura.
+export async function achicarCaptura(dataUrl, lado = 900, calidad = 0.72) {
+  const img = new Image();
+  await new Promise((ok, mal) => { img.onload = ok; img.onerror = mal; img.src = dataUrl; });
+  const escala = Math.min(1, lado / Math.max(img.width, img.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(img.width * escala);
+  canvas.height = Math.round(img.height * escala);
+  const g = canvas.getContext("2d");
+  g.fillStyle = "#ffffff";
+  g.fillRect(0, 0, canvas.width, canvas.height);
+  g.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", calidad);
+}
+
+// Fecha local en formato AAAA-MM-DD (la de Colombia cuando el equipo está en Colombia).
+export function hoyLocal() {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
