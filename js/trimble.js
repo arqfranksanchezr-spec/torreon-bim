@@ -40,7 +40,8 @@ export async function conectar() {
   // el token llega después por el evento extension.accessToken.
   const respuesta = await ctx.api.extension.requestPermission("accesstoken");
   if (respuesta === "denied") throw new Error("PERMISO_DENEGADO");
-  if (respuesta && respuesta !== "pending") {
+  // Solo se toma como token si tiene forma de JWT; otro texto es el estado de la solicitud de permiso.
+  if (typeof respuesta === "string" && respuesta.split(".").length === 3) {
     ctx.token = respuesta;
     resolverToken(respuesta);
   }
