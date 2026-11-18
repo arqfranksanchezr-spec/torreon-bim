@@ -30,6 +30,16 @@ function alEvento(evento, args) {
   (oyentes[evento] || []).forEach((fn) => fn(args?.data));
 }
 
+// La librería de Trimble deja un solo oyente de eventos activo: el de la última conexión.
+// Por eso los visores embebidos se conectan con esta función, que reenvía todo al oyente
+// principal; si no, al abrir un modelo embebido la extensión deja de recibir los clics del menú.
+export function conectarEmbebido(iframe, alEventoVisor) {
+  return TrimbleConnectWorkspace.connect(iframe, (evento, args) => {
+    alEvento(evento, args);
+    if (alEventoVisor) alEventoVisor(evento, args);
+  }, 30000);
+}
+
 export async function conectar() {
   if (window.self === window.top) {
     throw new Error("FUERA_DE_TRIMBLE");
