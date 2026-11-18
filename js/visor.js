@@ -3,6 +3,7 @@ import { conectar, escuchar, ctx } from "./trimble.js";
 import { obra } from "./backend.js";
 import { LISTAS, sugerirLista } from "./obra/listas.js";
 import { leerSeleccion, colorear, comprimirFoto, COLORES, claveColor, achicarCaptura, hoyLocal } from "./obra/modelo.js";
+import * as panelLA from "./la/panel-visor.js";
 
 const MAX_FOTOS = 8;
 const raiz = document.getElementById("contenido");
@@ -12,7 +13,7 @@ const fecha = (iso) => new Date(iso).toLocaleString("es-CO", { day: "2-digit", m
 const st = {
   elementos: [], sinId: 0, recortados: 0, leyendo: false,
   estado: null, fecha: hoyLocal(), lista: null, listaManual: false, resultados: {}, observaciones: "", fotos: [],
-  modoColor: null, guardando: false, historial: null,
+  modoColor: null, guardando: false, historial: null, pestana: "obra",
 };
 
 // ------------------------------------------------------------------ arranque
@@ -28,11 +29,36 @@ async function iniciar() {
   }
   let espera;
   escuchar("viewer.onSelectionChanged", (sel) => {
+    if (st.pestana !== "obra") return;
     clearTimeout(espera);
     espera = setTimeout(() => cargarSeleccion(sel), 250);
   });
-  pintar();
-  cargarSeleccion(await ctx.api.viewer.getSelection().catch(() => []));
+  panelLA.montar(document.getElementById("la-panel"), aviso);
+  const nav = document.getElementById("v-pestanas");
+  nav.hidden = false;
+  nav.querySelectorAll("[data-pestana]").forEach((b) => (b.onclick = () => cambiarPestana(b.dataset.pestana)));
+  let inicial = "obra";
+  try { inicial = localStorage.getItem("torreon-visor-pestana") === "la" ? "la" : "obra"; } catch (_) { // sin almacenamiento se abre Control de Obra
+  }
+  await cambiarPestana(inicial, true);
+}
+
+// El panel tiene dos pestañas: Control de Obra y L.A. Se recuerda la última usada.
+async function cambiarPestana(p, primera = false) {
+  if (p === st.pestana && !primera) return;
+  st.pestana = p;
+  try { localStorage.setItem("torreon-visor-pestana", p); } catch (_) { // no es necesario recordarla
+  }
+  document.querySelectorAll("#v-pestanas [data-pestana]").forEach((b) => b.classList.toggle("activo", b.dataset.pestana === p));
+  raiz.hidden = p !== "obra";
+  document.getElementById("la-panel").hidden = p !== "la";
+  if (p === "la") {
+    await panelLA.activar();
+  } else {
+    panelLA.desactivar();
+    pintar();
+    cargarSeleccion(await ctx.api.viewer.getSelection().catch(() => []));
+  }
 }
 
 async function cargarSeleccion(sel) {
@@ -75,8 +101,6 @@ function pintar() {
   });
 
   raiz.innerHTML = `
-    <header class="v-cab"><h1>Control de Obra</h1></header>
-
     <section class="v-bloque">
       <div class="v-etiqueta">Colorear el modelo</div>
       <div class="segmentos">
