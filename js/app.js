@@ -20,14 +20,17 @@ let actual = null;
 
 async function abrir(command, marcar = true) {
   const m = MODULOS.find((x) => x.command === command) || MODULOS[0];
+  if (actual === m) return; // Trimble puede mandar el mismo comando dos veces al cargar
   if (actual && actual.modulo.salir) actual.modulo.salir();
   actual = m;
-  contenedor.innerHTML = "";
+  // Cada apertura usa un contenedor nuevo; si una carga anterior termina tarde, escribe en uno ya retirado.
+  const zona = document.createElement("div");
+  contenedor.replaceChildren(zona);
   if (marcar) ctx.api.ui.setActiveMenuItem(m.command).catch(() => {});
   try {
-    await m.modulo.mostrar(contenedor, m);
+    await m.modulo.mostrar(zona, m);
   } catch (e) {
-    contenedor.innerHTML = `<div class="aviso error">No se pudo abrir ${m.titulo}: ${e.message}</div>`;
+    if (actual === m) zona.innerHTML = `<div class="aviso error">No se pudo abrir ${m.titulo}: ${e.message}</div>`;
   }
 }
 
