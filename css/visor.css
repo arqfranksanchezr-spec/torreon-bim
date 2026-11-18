@@ -44,7 +44,8 @@ body.visor #la-panel { padding: 4px 14px 80px; }
 #la-lista { width: 100%; padding: 9px; }
 .la-v-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
 #la-panel .btn:not(.enlace):not(.primario) { width: 100%; margin-top: 6px; min-height: 40px; }
-#la-panel .la-estado { grid-template-columns: 1fr auto 128px; }
+#la-panel .la-estado { grid-template-columns: auto minmax(0, 1fr); row-gap: 6px; }
+#la-panel .la-nombre { grid-column: 1 / -1; }
 #la-panel .la-estado input { font-size: 13px; padding: 6px; width: 100%; }
 .la-v-marcar { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin: 12px 0 6px; }
 .la-v-marcar input { margin-top: 2px; }
