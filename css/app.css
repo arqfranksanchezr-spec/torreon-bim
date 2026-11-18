@@ -136,3 +136,4 @@ h3 { font-size: 14px; margin: 18px 0 8px; }
 .g-cursor { position: absolute; top: -3px; bottom: -3px; width: 0; border-left: 2px dashed var(--azul); }
 .g-pct { text-align: right; color: var(--gris); font-size: 12px; }
 @media (max-width: 1000px) { .seg { grid-template-columns: 1fr; } }
+.seg > * { min-width: 0; }
