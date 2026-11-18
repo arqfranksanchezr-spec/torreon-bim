@@ -1,6 +1,6 @@
 // Seguimiento de Control de Obra en el tablero del proyecto:
 // miniatura del modelo con los colores del seguimiento y línea de tiempo de la ejecución.
-import { ctx } from "../trimble.js";
+import { ctx, conectarEmbebido } from "../trimble.js";
 import { obra } from "../backend.js";
 import { COLORES, claveColor, hoyLocal } from "./modelo.js";
 
@@ -237,7 +237,7 @@ async function abrirModelo() {
     lienzo.innerHTML = "";
     lienzo.appendChild(iframe);
     await cargado;
-    const api = await TrimbleConnectWorkspace.connect(iframe, () => {}, 30000);
+    const api = await conectarEmbebido(iframe);
     await api.embed.setTokens({ accessToken: ctx.token });
     await api.embed.init3DViewer({ projectId: ctx.proyecto.id, modelId: st.modelo });
     const limite = Date.now() + 90000;
