@@ -10,7 +10,7 @@ const MODULOS = [
   { command: "flujo_aprobacion_open", titulo: "Flujos documentales", icono: "flujos.svg", modulo: flujos },
   { command: "propiedades_open", titulo: "Propiedades", icono: "propiedades.svg", modulo: enConstruccion },
   { command: "loin_open", titulo: "Requisitos BIM (LOIN)", icono: "loin.svg", modulo: enConstruccion },
-  { command: "control_obra_open", titulo: "Control de Obra", icono: "obra.svg", modulo: controlObra },
+  { command: "control_obra_open", titulo: "Control de Obra", icono: "obra-menu.svg", modulo: controlObra },
   { command: "presupuesto_open", titulo: "Presupuesto", icono: "presupuesto.svg", modulo: enConstruccion },
   { command: "manuales_open", titulo: "Manuales", icono: "manuales.svg", modulo: enConstruccion },
 ];
