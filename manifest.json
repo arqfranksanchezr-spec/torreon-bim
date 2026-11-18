@@ -1,0 +1,8 @@
+{
+  "title": "Torreón BIM",
+  "icon": "https://arqfranksanchezr-spec.github.io/torreon-bim/icons/torreon.svg",
+  "url": "https://arqfranksanchezr-spec.github.io/torreon-bim/index.html",
+  "description": "Herramientas BIM de Torreón Grupo Empresarial: flujos documentales y control de obra",
+  "extensionType": ["project"],
+  "enabled": true
+}
