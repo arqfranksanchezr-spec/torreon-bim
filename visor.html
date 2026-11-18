@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Control de Obra</title>
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/visor.css">
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/trimble-connect-workspace-api@0.3.38/dist/iife/trimbleconnect.workspace.api.js"></script>
+</head>
+<body class="visor">
+  <div id="v-avisos"></div>
+  <main id="contenido">
+    <div class="cargando">Conectando con el visor…</div>
+  </main>
+  <script type="module" src="js/visor.js"></script>
+</body>
+</html>
