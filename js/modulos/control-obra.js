@@ -3,6 +3,7 @@
 import { trimble } from "../trimble.js";
 import { obra } from "../backend.js";
 import { COLORES, claveColor } from "../obra/modelo.js";
+import * as seguimiento from "../obra/seguimiento.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fecha = (iso) => iso ? new Date(iso).toLocaleString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
@@ -23,6 +24,8 @@ export async function mostrar(el) {
     <p class="tenue o-ayuda">Las revisiones se registran desde el visor 3D: abre el modelo, selecciona los elementos y usa el panel Control de Obra.</p>
     <section id="o-tarjetas" class="tarjetas"></section>
     <div id="f-avisos"></div>
+    <h3>Seguimiento</h3>
+    <section id="o-seguimiento"></section>
     <h3>Avance por nivel</h3>
     <table class="tabla" id="o-niveles"></table>
     <h3>Revisiones</h3>
@@ -48,7 +51,12 @@ export async function mostrar(el) {
   raiz.querySelector("#o-nivel").onchange = (e) => { filtros.nivel = e.target.value; pintarTabla(); };
   raiz.querySelector("#o-csv").onclick = exportarCsv;
   await recargar();
+  seguimiento.montar(raiz.querySelector("#o-seguimiento"), datos.revisiones);
 }
+
+export function salir() { seguimiento.desmontar(); }
+
+const soloFecha = (d) => d ? new Date(d + "T00:00:00Z").toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" }) : "";
 
 async function recargar() {
   try { datos = await obra("resumen"); }
@@ -130,7 +138,7 @@ function pintarTabla() {
   tbody.innerHTML = filas.map((r) => {
     const k = claveColor("conformidad", r);
     return `<tr data-id="${r.id}">
-      <td><b>REV-${r.numero}</b><br><small class="tenue">${fecha(r.creado_en)}</small></td>
+      <td><b>REV-${r.numero}</b><br><small class="tenue">Ejecución ${soloFecha(r.fecha_ejecucion)}</small></td>
       <td>${resumenElementos(r)}</td>
       <td><span class="punto" style="background:${COLORES.estado[r.estado].color}"></span>${COLORES.estado[r.estado].texto}</td>
       <td><span class="chip" style="background:${COLORES.conformidad[k].color}22;color:${COLORES.conformidad[k].color}">${COLORES.conformidad[k].texto}</span></td>
@@ -153,6 +161,7 @@ function abrirDetalle(id) {
     </div>
     <dl class="meta">
       <dt>Modelo</dt><dd>${esc(r.modelo_nombre || r.modelo_id)}</dd>
+      <dt>Ejecución</dt><dd>${soloFecha(r.fecha_ejecucion)}</dd>
       <dt>Estado</dt><dd>${COLORES.estado[r.estado].texto}</dd>
       <dt>Conformidad</dt><dd style="color:${COLORES.conformidad[k].color}">${COLORES.conformidad[k].texto}</dd>
       <dt>Lista</dt><dd>${esc(r.lista || "Sin lista")}</dd>
@@ -195,7 +204,7 @@ function abrirDetalle(id) {
 }
 
 function exportarCsv() {
-  const cab = ["Revisión", "Fecha", "Responsable", "Modelo", "Nivel", "Categoría", "Elemento", "Id elemento",
+  const cab = ["Revisión", "Fecha de ejecución", "Fecha de registro", "Responsable", "Modelo", "Nivel", "Categoría", "Elemento", "Id elemento",
     "Estado", "Conformidad", "Chequeo", "Observaciones", "Fotos", "Cierre NC"];
   const celda = (v) => `"${String(v ?? "").replace(/"/g, '""').replace(/\r?\n/g, " ")}"`;
   const lineas = [cab.map(celda).join(";")];
@@ -203,7 +212,7 @@ function exportarCsv() {
     const k = claveColor("conformidad", r);
     const chequeo = r.resultados.map((x) => `${x.item}: ${x.resultado}`).join(" | ");
     for (const e of r.obra_revision_elementos) {
-      lineas.push([`REV-${r.numero}`, fecha(r.creado_en), r.autor_nombre, r.modelo_nombre, e.nivel, e.categoria, e.nombre, e.object_id,
+      lineas.push([`REV-${r.numero}`, soloFecha(r.fecha_ejecucion), fecha(r.creado_en), r.autor_nombre, r.modelo_nombre, e.nivel, e.categoria, e.nombre, e.object_id,
         COLORES.estado[r.estado].texto, COLORES.conformidad[k].texto, chequeo, r.observaciones, r.fotos.map((f) => f.nombre).join(", "),
         r.nc_cerrada ? `${r.nc_nota_cierre} (${r.nc_cerrada_por}, ${fecha(r.nc_cerrada_en)})` : ""].map(celda).join(";"));
     }
