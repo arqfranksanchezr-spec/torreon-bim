@@ -2,7 +2,7 @@
 import { conectar, escuchar, ctx } from "./trimble.js";
 import { obra } from "./backend.js";
 import { LISTAS, sugerirLista } from "./obra/listas.js";
-import { leerSeleccion, colorear, comprimirFoto, COLORES, claveColor } from "./obra/modelo.js";
+import { leerSeleccion, colorear, comprimirFoto, COLORES, claveColor, achicarCaptura, hoyLocal } from "./obra/modelo.js";
 
 const MAX_FOTOS = 8;
 const raiz = document.getElementById("contenido");
@@ -11,7 +11,7 @@ const fecha = (iso) => new Date(iso).toLocaleString("es-CO", { day: "2-digit", m
 
 const st = {
   elementos: [], sinId: 0, recortados: 0, leyendo: false,
-  estado: null, lista: null, listaManual: false, resultados: {}, observaciones: "", fotos: [],
+  estado: null, fecha: hoyLocal(), lista: null, listaManual: false, resultados: {}, observaciones: "", fotos: [],
   modoColor: null, guardando: false, historial: null,
 };
 
@@ -128,6 +128,9 @@ function pintarFormulario() {
       <div class="segmentos grande">${estados.map(([k, c]) =>
         `<button data-estado="${k}" class="${st.estado === k ? "activo" : ""}" style="--c:${c.color}">${c.texto}</button>`).join("")}
       </div>
+      <label class="v-fecha">Fecha de ejecución
+        <input type="date" id="v-fecha" value="${esc(st.fecha)}" max="${hoyLocal()}">
+      </label>
     </section>
 
     <section class="v-bloque">
@@ -182,6 +185,8 @@ function enlazar() {
   })));
   const todo = raiz.querySelector("#v-todo-c");
   if (todo) todo.onclick = () => { st.lista.items.forEach((_, i) => (st.resultados[i] = "C")); pintar(); };
+  const fechaIn = raiz.querySelector("#v-fecha");
+  if (fechaIn) fechaIn.onchange = () => (st.fecha = fechaIn.value || hoyLocal());
   const obs = raiz.querySelector("#v-obs");
   if (obs) obs.oninput = () => (st.observaciones = obs.value);
   const fotos = raiz.querySelector("#v-fotos");
@@ -205,6 +210,7 @@ async function aplicarColor(modo) {
   try {
     const r = await colorear(modo, async (modeloIds) => (await obra("estado_modelos", { modeloIds })).elementos);
     if (modo) aviso(r.pintados ? `${r.pintados} elementos coloreados.` : "Todavía no hay revisiones en los modelos cargados.");
+    if (modo === "estado" && r.pintados) guardarMiniatura();
   } catch (e) {
     aviso(`No se pudo colorear: ${e.message}`, "error");
   }
@@ -233,6 +239,7 @@ async function guardar() {
         lista: st.lista ? st.lista.nombre : null,
         resultados,
         observaciones: st.observaciones,
+        fecha_ejecucion: st.fecha,
         fotos: fotosPendientes.map(({ nombre, tipo, base64 }) => ({ nombre, tipo, base64 })),
       });
       fallidas.push(...r.fotos_fallidas);
@@ -241,7 +248,7 @@ async function guardar() {
     aviso(fallidas.length
       ? `Revisión guardada, pero no subieron ${fallidas.length} fotos (${fallidas.join(", ")}). Revisa permisos de la carpeta en Trimble.`
       : "Revisión guardada.", fallidas.length ? "error" : "info");
-    Object.assign(st, { estado: null, resultados: {}, observaciones: "", fotos: [] });
+    Object.assign(st, { estado: null, resultados: {}, observaciones: "", fotos: [] }); // la fecha se conserva para la siguiente revisión
     if (st.modoColor) aplicarColor(st.modoColor);
     if (st.elementos.length === 1) cargarHistorial(st.elementos[0]);
   } catch (e) {
@@ -249,6 +256,18 @@ async function guardar() {
   }
   st.guardando = false;
   pintar();
+}
+
+// Captura la vista coloreada por avance y la guarda como miniatura del tablero de Control de Obra.
+async function guardarMiniatura() {
+  try {
+    await new Promise((r) => setTimeout(r, 600)); // deja que el visor termine de pintar
+    const modelos = await ctx.api.viewer.getModels("loaded");
+    if (!modelos.length) return;
+    const imagen = await achicarCaptura(await ctx.api.viewer.getSnapshot());
+    await obra("guardar_miniatura", { modelo: { id: modelos[0].id, nombre: modelos[0].name }, imagen });
+  } catch (_) { // la miniatura es un extra; si falla no se interrumpe el trabajo
+  }
 }
 
 function aviso(texto, tipo = "info") {
