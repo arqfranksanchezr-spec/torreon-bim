@@ -32,3 +32,5 @@ body.visor textarea { width: 100%; font-size: 14px; }
 .foto button { position: absolute; top: 2px; right: 2px; width: 22px; height: 22px; border-radius: 50%; border: none; background: rgba(0,0,0,.6); color: #fff; cursor: pointer; line-height: 1; }
 .foto.agregar { display: flex; align-items: center; justify-content: center; font-size: 30px; color: var(--azul); cursor: pointer; border-style: dashed; background: var(--fondo); }
 .v-guardar { width: 100%; min-height: 50px; font-size: 15px; margin-top: 6px; }
+.v-fecha { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; color: var(--gris); }
+.v-fecha input { font-size: 14px; padding: 7px 9px; }
