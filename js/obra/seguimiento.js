@@ -248,6 +248,13 @@ async function abrirModelo() {
       await new Promise((r) => setTimeout(r, 1500));
     }
     if (!cargados.length) throw new Error("el modelo no terminó de cargar");
+    // La miniatura muestra solo el modelo: se esconden barras y paneles del visor.
+    for (const [name, state] of [["SidePanel", "collapsed"], ["MainToolbar", "hidden"], ["DetailsPanel", "hidden"]]) {
+      try { await api.ui.setUI({ name, state }); } catch (_) { // si la versión de Trimble no lo permite, se deja como está
+      }
+    }
+    try { await api.viewer.setCamera("reset"); } catch (_) { // encuadre por defecto
+    }
     st.visor = { api, modeloVisor: cargados[0].id, rt: new Map() };
     await pintarModelo();
   } catch (e) {
