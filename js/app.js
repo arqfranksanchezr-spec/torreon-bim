@@ -18,12 +18,12 @@ const MODULOS = [
 const contenedor = document.getElementById("contenido");
 let actual = null;
 
-async function abrir(command) {
+async function abrir(command, marcar = true) {
   const m = MODULOS.find((x) => x.command === command) || MODULOS[0];
   if (actual && actual.modulo.salir) actual.modulo.salir();
   actual = m;
   contenedor.innerHTML = "";
-  ctx.api.ui.setActiveMenuItem(m.command).catch(() => {});
+  if (marcar) ctx.api.ui.setActiveMenuItem(m.command).catch(() => {});
   try {
     await m.modulo.mostrar(contenedor, m);
   } catch (e) {
@@ -54,8 +54,11 @@ async function iniciar() {
     })),
   });
 
-  alRecibirComando(abrir);
-  abrir(MODULOS[0].command);
+  alRecibirComando((c) => abrir(c));
+  // Al cargar se abre el módulo de la dirección (si Trimble la deja ver) sin mover el menú,
+  // para no sacar al usuario de la pantalla en la que está.
+  const desdeUrl = (document.referrer.match(/\/extension\/[^/]+\/([a-z_]+)/) || [])[1];
+  abrir(MODULOS.some((m) => m.command === desdeUrl) ? desdeUrl : MODULOS[0].command, false);
 }
 
 iniciar();
