@@ -3,6 +3,7 @@ import { conectar, alRecibirComando, ctx } from "./trimble.js";
 import * as flujos from "./modulos/flujos.js";
 import * as enConstruccion from "./modulos/en-construccion.js";
 import * as controlObra from "./modulos/control-obra.js";
+import * as la from "./modulos/la.js";
 
 // Cada submenú es un módulo. Para agregar uno nuevo: crea su archivo en js/modulos/,
 // impórtalo arriba y súmalo aquí con su command.
@@ -11,6 +12,7 @@ const MODULOS = [
   { command: "propiedades_open", titulo: "Propiedades", icono: "propiedades.svg", modulo: enConstruccion },
   { command: "loin_open", titulo: "Requisitos BIM (LOIN)", icono: "loin.svg", modulo: enConstruccion },
   { command: "control_obra_open", titulo: "Control de Obra", icono: "obra-menu.svg", modulo: controlObra },
+  { command: "la_open", titulo: "L.A.", icono: "la.svg", modulo: la },
   { command: "presupuesto_open", titulo: "Presupuesto", icono: "presupuesto.svg", modulo: enConstruccion },
   { command: "manuales_open", titulo: "Manuales", icono: "manuales.svg", modulo: enConstruccion },
 ];
