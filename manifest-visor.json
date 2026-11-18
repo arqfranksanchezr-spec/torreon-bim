@@ -1,6 +1,6 @@
 {
   "title": "Control de Obra",
-  "icon": "https://arqfranksanchezr-spec.github.io/torreon-bim/icons/obra.svg",
+  "icon": "https://arqfranksanchezr-spec.github.io/torreon-bim/icons/obra-visor.svg",
   "url": "https://arqfranksanchezr-spec.github.io/torreon-bim/visor.html",
   "description": "Revisión de elementos construidos contra el modelo: avance, lista de chequeo, observaciones y fotos",
   "extensionType": ["3dviewer"],
