@@ -1,5 +1,5 @@
 // Visor 3D de Trimble embebido dentro de una pestaña del proyecto.
-import { ctx } from "../trimble.js";
+import { ctx, conectarEmbebido } from "../trimble.js";
 
 export async function abrirVisor(contenedor, modeloId, alSeleccionar) {
   const iframe = document.createElement("iframe");
@@ -9,9 +9,9 @@ export async function abrirVisor(contenedor, modeloId, alSeleccionar) {
   contenedor.innerHTML = "";
   contenedor.appendChild(iframe);
   await cargado;
-  const api = await TrimbleConnectWorkspace.connect(iframe, (evento, args) => {
+  const api = await conectarEmbebido(iframe, (evento, args) => {
     if (evento === "viewer.onSelectionChanged" && alSeleccionar) alSeleccionar(args && args.data);
-  }, 30000);
+  });
   await api.embed.setTokens({ accessToken: ctx.token });
   await api.embed.init3DViewer({ projectId: ctx.proyecto.id, modelId: modeloId });
   const limite = Date.now() + 90000;
