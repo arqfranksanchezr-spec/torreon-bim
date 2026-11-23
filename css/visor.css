@@ -49,3 +49,9 @@ body.visor #la-panel { padding: 4px 14px 80px; }
 #la-panel .la-estado input { font-size: 13px; padding: 6px; width: 100%; }
 .la-v-marcar { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; margin: 12px 0 6px; }
 .la-v-marcar input { margin-top: 2px; }
+.anexo { border: 1px solid var(--borde); border-radius: 6px; padding: 8px; margin-bottom: 6px; }
+.anexo-cab { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; font-size: 13px; }
+.anexo-nombre { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.anexo-quitar { width: 26px; height: 26px; border-radius: 50%; border: none; background: #eef0f3; cursor: pointer; flex-shrink: 0; }
+.anexo select { width: 100%; padding: 7px; font-size: 13px; }
+.anexo-agregar { display: block; text-align: center; width: 100%; min-height: 42px; line-height: 26px; cursor: pointer; }
