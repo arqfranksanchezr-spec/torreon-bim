@@ -4,6 +4,7 @@ import { obra } from "./backend.js";
 import { LISTAS, sugerirLista } from "./obra/listas.js";
 import { leerSeleccion, colorear, comprimirFoto, COLORES, claveColor, achicarCaptura, hoyLocal } from "./obra/modelo.js";
 import * as panelLA from "./la/panel-visor.js";
+import * as anexos from "./obra/anexos.js";
 
 const MAX_FOTOS = 8;
 const raiz = document.getElementById("contenido");
@@ -12,7 +13,7 @@ const fecha = (iso) => new Date(iso).toLocaleString("es-CO", { day: "2-digit", m
 
 const st = {
   elementos: [], sinId: 0, recortados: 0, leyendo: false,
-  estado: null, fecha: hoyLocal(), lista: null, listaManual: false, resultados: {}, observaciones: "", fotos: [],
+  estado: null, fecha: hoyLocal(), lista: null, listaManual: false, resultados: {}, observaciones: "", fotos: [], anexos: [],
   modoColor: null, guardando: false, historial: null, pestana: "obra",
 };
 
@@ -140,7 +141,8 @@ function pintarHistorial() {
       const k = claveColor("conformidad", r);
       return `<li><small class="tenue">${fecha(r.creado_en)} · ${esc(r.autor_nombre)} · REV-${r.numero}</small><br>
         ${esc(COLORES.estado[r.estado].texto)} · <span style="color:${COLORES.conformidad[k].color}">${esc(COLORES.conformidad[k].texto)}</span>
-        ${r.observaciones ? `<br><small>${esc(r.observaciones)}</small>` : ""}</li>`;
+        ${r.observaciones ? `<br><small>${esc(r.observaciones)}</small>` : ""}
+        ${(r.anexos || []).length ? `<br><small class="tenue">${r.anexos.length} ${r.anexos.length === 1 ? "anexo" : "anexos"}: ${r.anexos.map((a) => esc(a.categoria)).join(", ")}</small>` : ""}</li>`;
     }).join("")}</ol></section>`;
 }
 
@@ -186,6 +188,18 @@ function pintarFormulario() {
       </div>
     </section>
 
+    <section class="v-bloque">
+      <div class="v-etiqueta">Anexos <small class="tenue">${st.anexos.length}/${anexos.MAX_ANEXOS}</small></div>
+      ${st.anexos.map((a, i) => `<div class="anexo">
+        <div class="anexo-cab"><span class="anexo-nombre" title="${esc(a.nombre)}">${esc(a.nombre)}</span>
+          <small class="tenue">${anexos.tamano(a.archivo.size)}</small>
+          <button class="anexo-quitar" data-quitar-anexo="${i}" title="Quitar">×</button></div>
+        <select data-anexo-tipo="${i}">${anexos.TIPOS_ANEXO.map((t) => `<option ${t === a.tipo ? "selected" : ""}>${t}</option>`).join("")}</select>
+      </div>`).join("")}
+      ${st.anexos.length < anexos.MAX_ANEXOS ? `<label class="btn anexo-agregar">Agregar anexo<input type="file" accept="${anexos.ACEPTA}" multiple id="v-anexos" hidden></label>` : ""}
+      <p class="tenue"><small>Certificados de laboratorio, ensayos o actas. PDF, imagen, Excel o Word de hasta ${anexos.MAX_MB} MB. Si el resultado llega después, se puede anexar desde Control de Obra en el proyecto.</small></p>
+    </section>
+
     <button class="btn primario v-guardar" id="v-guardar" ${st.guardando ? "disabled" : ""}>
       ${st.guardando ? "Guardando…" : `Guardar revisión de ${st.elementos.length} ${st.elementos.length === 1 ? "elemento" : "elementos"}`}
     </button>`;
@@ -216,6 +230,15 @@ function enlazar() {
   const fotos = raiz.querySelector("#v-fotos");
   if (fotos) fotos.onchange = () => agregarFotos([...fotos.files]);
   raiz.querySelectorAll("[data-quitar-foto]").forEach((b) => (b.onclick = () => { st.fotos.splice(+b.dataset.quitarFoto, 1); pintar(); }));
+  const an = raiz.querySelector("#v-anexos");
+  if (an) an.onchange = () => {
+    const r = anexos.filtrar([...an.files], st.anexos.length);
+    st.anexos.push(...r.ok);
+    if (r.grandes.length) aviso(`No se agregaron por pasar de ${anexos.MAX_MB} MB: ${r.grandes.join(", ")}`, "error");
+    pintar();
+  };
+  raiz.querySelectorAll("[data-anexo-tipo]").forEach((s) => (s.onchange = () => (st.anexos[+s.dataset.anexoTipo].tipo = s.value)));
+  raiz.querySelectorAll("[data-quitar-anexo]").forEach((b) => (b.onclick = () => { st.anexos.splice(+b.dataset.quitarAnexo, 1); pintar(); }));
   const g = raiz.querySelector("#v-guardar");
   if (g) g.onclick = guardar;
 }
@@ -254,6 +277,7 @@ async function guardar() {
   try {
     let fotosPendientes = st.fotos;
     const fallidas = [];
+    let primeraRevision = null;
     for (const lista of Object.values(porModelo)) {
       const m = lista[0];
       const r = await obra("guardar_revision", {
@@ -267,12 +291,21 @@ async function guardar() {
         fotos: fotosPendientes.map(({ nombre, tipo, base64 }) => ({ nombre, tipo, base64 })),
       });
       fallidas.push(...r.fotos_fallidas);
+      primeraRevision ||= r.revision;
       fotosPendientes = []; // las fotos se suben con la primera revisión
     }
-    aviso(fallidas.length
-      ? `Revisión guardada, pero no subieron ${fallidas.length} fotos (${fallidas.join(", ")}). Revisa permisos de la carpeta en Trimble.`
-      : "Revisión guardada.", fallidas.length ? "error" : "info");
-    Object.assign(st, { estado: null, resultados: {}, observaciones: "", fotos: [] }); // la fecha se conserva para la siguiente revisión
+    // Los anexos se suben después, uno por uno, a la primera revisión (igual que las fotos).
+    let anexosFallidos = [];
+    if (st.anexos.length && primeraRevision) {
+      anexosFallidos = await anexos.subir(primeraRevision.id, st.anexos, (i, n, nombre) => aviso(`Subiendo anexo ${i} de ${n}: ${nombre}`));
+    }
+    const problemas = [];
+    if (fallidas.length) problemas.push(`no subieron ${fallidas.length} fotos (${fallidas.join(", ")})`);
+    if (anexosFallidos.length) problemas.push(`no subieron estos anexos: ${anexosFallidos.join("; ")}`);
+    aviso(problemas.length
+      ? `REV-${primeraRevision.numero} guardada, pero ${problemas.join(" y ")}. Puedes anexarlos desde Control de Obra en el proyecto.`
+      : `REV-${primeraRevision.numero} guardada${st.anexos.length ? ` con ${st.anexos.length} ${st.anexos.length === 1 ? "anexo" : "anexos"}` : ""}.`, problemas.length ? "error" : "info");
+    Object.assign(st, { estado: null, resultados: {}, observaciones: "", fotos: [], anexos: [] }); // la fecha se conserva para la siguiente revisión
     if (st.modoColor) aplicarColor(st.modoColor);
     if (st.elementos.length === 1) cargarHistorial(st.elementos[0]);
   } catch (e) {
