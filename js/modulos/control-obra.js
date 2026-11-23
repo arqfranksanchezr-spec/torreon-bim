@@ -4,6 +4,7 @@ import { trimble } from "../trimble.js";
 import { obra } from "../backend.js";
 import { COLORES, claveColor } from "../obra/modelo.js";
 import * as seguimiento from "../obra/seguimiento.js";
+import * as anexos from "../obra/anexos.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fecha = (iso) => iso ? new Date(iso).toLocaleString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
@@ -40,7 +41,7 @@ export async function mostrar(el) {
       <select id="o-nivel"><option value="">Todos los niveles</option></select>
     </section>
     <table class="tabla">
-      <thead><tr><th>Revisión</th><th>Elementos</th><th>Estado</th><th>Conformidad</th><th>Fotos</th><th>Por</th></tr></thead>
+      <thead><tr><th>Revisión</th><th>Elementos</th><th>Estado</th><th>Conformidad</th><th>Fotos / anexos</th><th>Por</th></tr></thead>
       <tbody id="o-filas"><tr><td colspan="6" class="tenue">Cargando…</td></tr></tbody>
     </table>
     <aside id="o-panel" class="panel oculto"></aside>`;
@@ -142,7 +143,7 @@ function pintarTabla() {
       <td>${resumenElementos(r)}</td>
       <td><span class="punto" style="background:${COLORES.estado[r.estado].color}"></span>${COLORES.estado[r.estado].texto}</td>
       <td><span class="chip" style="background:${COLORES.conformidad[k].color}22;color:${COLORES.conformidad[k].color}">${COLORES.conformidad[k].texto}</span></td>
-      <td>${r.fotos.length || ""}</td>
+      <td>${r.fotos.length ? `${r.fotos.length} fotos` : ""}${r.fotos.length && (r.anexos || []).length ? "<br>" : ""}${(r.anexos || []).length ? `<b>${r.anexos.length} ${r.anexos.length === 1 ? "anexo" : "anexos"}</b>` : ""}</td>
       <td><small>${esc(r.autor_nombre)}</small></td></tr>`;
   }).join("");
   tbody.querySelectorAll("tr[data-id]").forEach((tr) => (tr.onclick = () => abrirDetalle(tr.dataset.id)));
@@ -172,6 +173,17 @@ function abrirDetalle(id) {
     ${r.fotos.length ? `<h3>Fotos</h3><div class="lista-fotos">${r.fotos.map((f) =>
       `<button class="btn" data-foto="${esc(f.file_id)}">${esc(f.nombre)}</button>`).join("")}</div>
       <p class="tenue"><small>Están en la carpeta de fotos de control de obra del proyecto.</small></p>` : ""}
+    <h3>Anexos <small class="tenue">${(r.anexos || []).length}</small></h3>
+    ${(r.anexos || []).length ? `<ul class="lista-anexos">${r.anexos.map((a) => `<li>
+        <button class="btn enlace" data-anexo="${esc(a.file_id)}">${esc(a.nombre)}</button>
+        <small class="tenue">${esc(a.categoria)} · ${anexos.tamano(a.bytes || 0)} · ${esc(a.subido_por || "")} · ${fecha(a.subido_en)}</small></li>`).join("")}</ul>
+      <p class="tenue"><small>Están en la carpeta "Control de Obra - Anexos" del proyecto.</small></p>`
+      : `<p class="tenue">Sin anexos.</p>`}
+    ${(r.anexos || []).length < anexos.MAX_ANEXOS ? `<div class="anexo-nuevo">
+      <select id="p-anexo-tipo">${anexos.TIPOS_ANEXO.map((t) => `<option>${t}</option>`).join("")}</select>
+      <label class="btn">Anexar archivo<input type="file" id="p-anexo" accept="${anexos.ACEPTA}" multiple hidden></label>
+    </div>
+    <p class="tenue"><small>Por ejemplo el resultado de los cilindros a 7 o 28 días. Hasta ${anexos.MAX_MB} MB por archivo.</small></p>` : ""}
     ${r.conformidad === "no_conforme" ? (r.nc_cerrada
       ? `<h3>Cierre de la no conformidad</h3><p>${esc(r.nc_nota_cierre)}<br><small class="tenue">${esc(r.nc_cerrada_por)} · ${fecha(r.nc_cerrada_en)}</small></p>`
       : `<h3>Cerrar no conformidad</h3>
@@ -189,6 +201,24 @@ function abrirDetalle(id) {
     try { ventana.location = await trimble.urlDescarga(b.dataset.foto); }
     catch (e) { ventana && ventana.close(); aviso(e.message, "error"); }
   }));
+  panel.querySelectorAll("[data-anexo]").forEach((b) => (b.onclick = async () => {
+    const ventana = window.open("", "_blank");
+    try { ventana.location = await trimble.urlDescarga(b.dataset.anexo); }
+    catch (e) { ventana && ventana.close(); aviso(e.message, "error"); }
+  }));
+  const nuevo = panel.querySelector("#p-anexo");
+  if (nuevo) nuevo.onchange = async () => {
+    const { ok, grandes } = anexos.filtrar([...nuevo.files], (r.anexos || []).length);
+    if (grandes.length) aviso(`No se anexan por pasar de ${anexos.MAX_MB} MB: ${grandes.join(", ")}`, "error");
+    if (!ok.length) return;
+    const tipo = panel.querySelector("#p-anexo-tipo").value;
+    ok.forEach((a) => (a.tipo = tipo));
+    nuevo.disabled = true;
+    const fallidos = await anexos.subir(r.id, ok, (i, n, nombre) => aviso(`Subiendo ${i} de ${n}: ${nombre}`));
+    aviso(fallidos.length ? `No subieron: ${fallidos.join("; ")}` : `REV-${r.numero}: ${ok.length} ${ok.length === 1 ? "anexo agregado" : "anexos agregados"}.`, fallidos.length ? "error" : "info");
+    await recargar();
+    abrirDetalle(r.id);
+  };
   const cerrarNc = panel.querySelector("#p-cerrar-nc");
   if (cerrarNc) cerrarNc.onclick = async () => {
     const nota = panel.querySelector("#p-nota").value.trim();
@@ -205,7 +235,7 @@ function abrirDetalle(id) {
 
 function exportarCsv() {
   const cab = ["Revisión", "Fecha de ejecución", "Fecha de registro", "Responsable", "Modelo", "Nivel", "Categoría", "Elemento", "Id elemento",
-    "Estado", "Conformidad", "Chequeo", "Observaciones", "Fotos", "Cierre NC"];
+    "Estado", "Conformidad", "Chequeo", "Observaciones", "Fotos", "Anexos", "Cierre NC"];
   const celda = (v) => `"${String(v ?? "").replace(/"/g, '""').replace(/\r?\n/g, " ")}"`;
   const lineas = [cab.map(celda).join(";")];
   for (const r of filtradas()) {
@@ -214,6 +244,7 @@ function exportarCsv() {
     for (const e of r.obra_revision_elementos) {
       lineas.push([`REV-${r.numero}`, soloFecha(r.fecha_ejecucion), fecha(r.creado_en), r.autor_nombre, r.modelo_nombre, e.nivel, e.categoria, e.nombre, e.object_id,
         COLORES.estado[r.estado].texto, COLORES.conformidad[k].texto, chequeo, r.observaciones, r.fotos.map((f) => f.nombre).join(", "),
+        (r.anexos || []).map((a) => `${a.categoria}: ${a.nombre}`).join(", "),
         r.nc_cerrada ? `${r.nc_nota_cierre} (${r.nc_cerrada_por}, ${fecha(r.nc_cerrada_en)})` : ""].map(celda).join(";"));
     }
   }
