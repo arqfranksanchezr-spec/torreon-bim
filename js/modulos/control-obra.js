@@ -10,6 +10,14 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const fecha = (iso) => iso ? new Date(iso).toLocaleString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
 const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
 const unicos = (arr) => [...new Set(arr.filter(Boolean))];
+const ETIQUETA = { C: "C", NC: "NC", NA: "N/A", SI: "SÍ", NO: "NO" };
+const pendientes = (r) => (r.resultados || []).filter((x) => x.resultado === "DATO" && !x.valor).length;
+function verDato(x) {
+  if (!x.valor) return "pendiente";
+  if (x.tipo === "fecha") return new Date(x.valor + "T00:00:00Z").toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
+  if (x.tipo === "numero" && /psi/i.test(x.item)) return `${Number(x.valor).toLocaleString("es-CO")} psi`;
+  return x.valor;
+}
 
 let raiz, datos = { actuales: [], revisiones: [] };
 const filtros = { texto: "", estado: "", conformidad: "", nivel: "" };
@@ -37,7 +45,8 @@ export async function mostrar(el) {
         <option value="no_conforme">No conformes abiertas</option>
         <option value="corregido">No conformidades cerradas</option>
         <option value="conforme">Conformes</option>
-        <option value="sin_chequeo">Sin lista de chequeo</option></select>
+        <option value="sin_chequeo">Sin lista de chequeo</option>
+        <option value="ensayo">Con datos de ensayo pendientes</option></select>
       <select id="o-nivel"><option value="">Todos los niveles</option></select>
     </section>
     <table class="tabla">
@@ -122,7 +131,8 @@ function resumenElementos(r) {
 function filtradas() {
   return datos.revisiones.filter((r) => {
     if (filtros.estado && r.estado !== filtros.estado) return false;
-    if (filtros.conformidad && claveColor("conformidad", r) !== filtros.conformidad) return false;
+    if (filtros.conformidad === "ensayo") { if (!pendientes(r)) return false; }
+    else if (filtros.conformidad && claveColor("conformidad", r) !== filtros.conformidad) return false;
     if (filtros.nivel && !r.obra_revision_elementos.some((e) => e.nivel === filtros.nivel)) return false;
     if (filtros.texto) {
       const t = `rev-${r.numero} ${r.observaciones || ""} ${r.autor_nombre} ${r.modelo_nombre || ""} ${r.obra_revision_elementos.map((e) => `${e.nombre} ${e.categoria}`).join(" ")}`.toLowerCase();
@@ -139,7 +149,8 @@ function pintarTabla() {
   tbody.innerHTML = filas.map((r) => {
     const k = claveColor("conformidad", r);
     return `<tr data-id="${r.id}">
-      <td><b>REV-${r.numero}</b><br><small class="tenue">Ejecución ${soloFecha(r.fecha_ejecucion)}</small></td>
+      <td><b>REV-${r.numero}</b><br><small class="tenue">Ejecución ${soloFecha(r.fecha_ejecucion)}</small>
+        ${pendientes(r) ? `<br><small class="pendiente">Ensayo pendiente</small>` : ""}</td>
       <td>${resumenElementos(r)}</td>
       <td><span class="punto" style="background:${COLORES.estado[r.estado].color}"></span>${COLORES.estado[r.estado].texto}</td>
       <td><span class="chip" style="background:${COLORES.conformidad[k].color}22;color:${COLORES.conformidad[k].color}">${COLORES.conformidad[k].texto}</span></td>
@@ -167,8 +178,13 @@ function abrirDetalle(id) {
       <dt>Conformidad</dt><dd style="color:${COLORES.conformidad[k].color}">${COLORES.conformidad[k].texto}</dd>
       <dt>Lista</dt><dd>${esc(r.lista || "Sin lista")}</dd>
     </dl>
-    ${r.resultados.length ? `<h3>Chequeo</h3><ul class="resultados">${r.resultados.map((x) =>
-      `<li><span>${esc(x.item)}</span><b class="r-${x.resultado}">${x.resultado === "NA" ? "N/A" : x.resultado}</b></li>`).join("")}</ul>` : ""}
+    ${r.resultados.length ? `<h3>Chequeo</h3><ul class="resultados">${r.resultados.map((x, i) => x.resultado === "DATO"
+      ? `<li class="dato"><span>${esc(x.item)}</span>${x.valor
+          ? `<b title="${esc(x.completado_por ? `Completado por ${x.completado_por}` : "")}">${esc(verDato(x))}</b>`
+          : `<span class="completar"><input data-valor="${i}" type="${x.tipo === "fecha" ? "date" : x.tipo === "numero" ? "number" : "text"}" ${x.tipo === "numero" ? 'min="0" step="any" placeholder="psi"' : ""}>
+             <button class="btn" data-completar="${i}">Guardar</button></span>`}</li>`
+      : `<li><span>${esc(x.item)}</span><b class="r-${x.resultado}">${ETIQUETA[x.resultado] || x.resultado}</b></li>`).join("")}</ul>
+      ${pendientes(r) ? `<p class="tenue"><small>Los datos en blanco se completan cuando llegue el resultado del laboratorio. Puedes anexar el certificado más abajo.</small></p>` : ""}` : ""}
     ${r.observaciones ? `<h3>Observaciones</h3><p>${esc(r.observaciones)}</p>` : ""}
     ${r.fotos.length ? `<h3>Fotos</h3><div class="lista-fotos">${r.fotos.map((f) =>
       `<button class="btn" data-foto="${esc(f.file_id)}">${esc(f.nombre)}</button>`).join("")}</div>
@@ -206,6 +222,18 @@ function abrirDetalle(id) {
     try { ventana.location = await trimble.urlDescarga(b.dataset.anexo); }
     catch (e) { ventana && ventana.close(); aviso(e.message, "error"); }
   }));
+  panel.querySelectorAll("[data-completar]").forEach((b) => (b.onclick = async () => {
+    const indice = +b.dataset.completar;
+    const valor = panel.querySelector(`[data-valor="${indice}"]`).value.trim();
+    if (!valor) return aviso("Escribe el valor antes de guardar.", "error");
+    b.disabled = true;
+    try {
+      await obra("completar_dato", { revisionId: r.id, indice, valor });
+      aviso(`REV-${r.numero}: dato guardado.`);
+      await recargar();
+      abrirDetalle(r.id);
+    } catch (e) { aviso(e.message, "error"); b.disabled = false; }
+  }));
   const nuevo = panel.querySelector("#p-anexo");
   if (nuevo) nuevo.onchange = async () => {
     const { ok, grandes } = anexos.filtrar([...nuevo.files], (r.anexos || []).length);
@@ -240,7 +268,7 @@ function exportarCsv() {
   const lineas = [cab.map(celda).join(";")];
   for (const r of filtradas()) {
     const k = claveColor("conformidad", r);
-    const chequeo = r.resultados.map((x) => `${x.item}: ${x.resultado}`).join(" | ");
+    const chequeo = r.resultados.map((x) => `${x.item}: ${x.resultado === "DATO" ? verDato(x) : ETIQUETA[x.resultado] || x.resultado}`).join(" | ");
     for (const e of r.obra_revision_elementos) {
       lineas.push([`REV-${r.numero}`, soloFecha(r.fecha_ejecucion), fecha(r.creado_en), r.autor_nombre, r.modelo_nombre, e.nivel, e.categoria, e.nombre, e.object_id,
         COLORES.estado[r.estado].texto, COLORES.conformidad[k].texto, chequeo, r.observaciones, r.fotos.map((f) => f.nombre).join(", "),
