@@ -166,3 +166,7 @@ h3 { font-size: 14px; margin: 18px 0 8px; }
 .resultados .completar { display: flex; gap: 6px; align-items: center; }
 .resultados .completar input { width: 130px; padding: 5px; }
 .pendiente { color: #b45309; font-weight: 600; }
+.leyenda-curva { margin-top: 4px; }
+.leyenda-curva .l-linea { height: 3px; width: 16px; border: none; vertical-align: 3px; }
+.leyenda-curva .l-corte { width: 0; height: 11px; border: none; border-left: 2px dashed var(--azul); border-radius: 0; margin: 0 7px 0 4px; }
+.nota-curva { margin: 2px 0 0; }
