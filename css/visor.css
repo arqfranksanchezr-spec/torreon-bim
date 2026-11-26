@@ -55,3 +55,7 @@ body.visor #la-panel { padding: 4px 14px 80px; }
 .anexo-quitar { width: 26px; height: 26px; border-radius: 50%; border: none; background: #eef0f3; cursor: pointer; flex-shrink: 0; }
 .anexo select { width: 100%; padding: 7px; font-size: 13px; }
 .anexo-agregar { display: block; text-align: center; width: 100%; min-height: 42px; line-height: 26px; cursor: pointer; }
+.trio button.r-SI { background: var(--verde-claro); border-color: var(--verde); color: var(--verde); font-weight: 600; }
+.trio button.r-NO { background: #fff4e5; border-color: #d97706; color: #b45309; font-weight: 600; }
+.item-dato { display: grid; grid-template-columns: 1fr 140px; gap: 8px; align-items: center; padding: 6px 0 6px 14px; border-bottom: 1px dashed #eef0f3; font-size: 13px; color: var(--gris); }
+.item-dato input { width: 100%; padding: 7px; font-size: 13px; }
