@@ -61,7 +61,7 @@ export async function mostrar(el) {
   raiz.querySelector("#o-nivel").onchange = (e) => { filtros.nivel = e.target.value; pintarTabla(); };
   raiz.querySelector("#o-csv").onclick = exportarCsv;
   await recargar();
-  seguimiento.montar(raiz.querySelector("#o-seguimiento"), datos.revisiones);
+  seguimiento.montar(raiz.querySelector("#o-seguimiento"), datos.revisiones, aviso);
 }
 
 export function salir() { seguimiento.desmontar(); }
