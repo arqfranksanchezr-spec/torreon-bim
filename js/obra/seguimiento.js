@@ -64,6 +64,12 @@ export async function montar(el, revisiones) {
           <span class="tenue" id="s-resumen"></span>
         </div>
         <svg id="s-curva" viewBox="0 0 800 230" preserveAspectRatio="none"></svg>
+        <div class="leyenda leyenda-curva">
+          <span><i class="l-linea" style="background:${COLORES.estado.ejecutado.color}"></i>Ejecutados (acumulado)</span>
+          <span><i class="l-linea" style="background:${COLORES.estado.en_ejecucion.color}"></i>Iniciados (en ejecución + ejecutados)</span>
+          <span><i class="l-corte"></i>Fecha que se está viendo</span>
+        </div>
+        <p class="tenue nota-curva"><small>Si solo se ve la línea verde, es porque todo lo que se inició ya está ejecutado y las dos líneas van juntas. La distancia entre ellas es lo que está en ejecución.</small></p>
         <div class="seg-control">
           <button class="btn" id="s-play">Reproducir</button>
           <input type="range" id="s-rango" min="0" max="${Math.round((st.hasta - st.desde) / DIA)}" value="${Math.round((st.hasta - st.desde) / DIA)}">
@@ -139,10 +145,10 @@ function pintarTiempo() {
   raiz.querySelector("#s-curva").innerHTML = total ? `
     ${yMarcas}
     <path d="${area(puntosI)}" fill="${COLORES.estado.en_ejecucion.color}" opacity=".25"/>
-    <path d="${linea(puntosI)}" fill="none" stroke="${COLORES.estado.en_ejecucion.color}" stroke-width="2"/>
+    <path d="${linea(puntosI)}" fill="none" stroke="${COLORES.estado.en_ejecucion.color}" stroke-width="2"><title>Iniciados: en ejecución + ejecutados</title></path>
     <path d="${area(puntosE)}" fill="${COLORES.estado.ejecutado.color}" opacity=".25"/>
-    <path d="${linea(puntosE)}" fill="none" stroke="${COLORES.estado.ejecutado.color}" stroke-width="2.5"/>
-    <line x1="${x(st.fecha)}" x2="${x(st.fecha)}" y1="${T}" y2="${H - B}" class="cursor"/>
+    <path d="${linea(puntosE)}" fill="none" stroke="${COLORES.estado.ejecutado.color}" stroke-width="2.5"><title>Ejecutados (acumulado)</title></path>
+    <line x1="${x(st.fecha)}" x2="${x(st.fecha)}" y1="${T}" y2="${H - B}" class="cursor"><title>Fecha que se está viendo</title></line>
     ${marcas.join("")}` :
     `<text x="400" y="115" text-anchor="middle" class="eje">Todavía no hay revisiones con fecha de ejecución en este modelo.</text>`;
 
