@@ -160,3 +160,9 @@ h3 { font-size: 14px; margin: 18px 0 8px; }
 .anexo-nuevo { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
 .anexo-nuevo select { flex: 1; padding: 7px; }
 .anexo-nuevo label.btn { cursor: pointer; }
+.resultados .r-SI { color: var(--verde); } .resultados .r-NO { color: #b45309; }
+.resultados li.dato { padding-left: 14px; color: var(--gris); }
+.resultados li.dato b { color: #1d232b; }
+.resultados .completar { display: flex; gap: 6px; align-items: center; }
+.resultados .completar input { width: 130px; padding: 5px; }
+.pendiente { color: #b45309; font-weight: 600; }
