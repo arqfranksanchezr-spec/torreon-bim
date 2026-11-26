@@ -170,3 +170,29 @@ h3 { font-size: 14px; margin: 18px 0 8px; }
 .leyenda-curva .l-linea { height: 3px; width: 16px; border: none; vertical-align: 3px; }
 .leyenda-curva .l-corte { width: 0; height: 11px; border: none; border-left: 2px dashed var(--azul); border-radius: 0; margin: 0 7px 0 4px; }
 .nota-curva { margin: 2px 0 0; }
+#s-curva .hoy { stroke: #9aa3ad; stroke-width: 1; }
+.leyenda-curva .l-trazos { background: none !important; height: 0; border-top: 2px dashed; vertical-align: 4px; }
+.leyenda-curva .l-hoy { border-left: 1px solid #9aa3ad; }
+.seg-cab #s-vistas:empty { display: none; }
+.prog { border: 1px solid var(--borde); border-radius: 6px; padding: 12px 14px; background: #fff; }
+.prog-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.prog-cab small { display: block; }
+.prog-botones { display: flex; gap: 8px; flex-wrap: wrap; }
+.prog-botones label.btn { cursor: pointer; }
+.prog-pasos { margin: 10px 0 6px; padding-left: 20px; font-size: 13px; color: var(--gris); }
+.prog-pasos li.hecho { color: #1d232b; }
+.prog-pasos li.hecho::marker { color: var(--verde); font-weight: 700; }
+.prog h4 { margin: 14px 0 6px; font-size: 14px; }
+.prog-tabla td { vertical-align: top; }
+.atraso { color: var(--rojo); }
+.caja.ancha { width: min(1100px, 96vw); max-height: 90vh; display: flex; flex-direction: column; }
+.e-barra { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 8px 0; }
+.e-barra .buscar { flex: 1; min-width: 180px; }
+.e-tabla { overflow: auto; flex: 1; min-height: 200px; border: 1px solid var(--borde); border-radius: 4px; }
+.e-tabla td { vertical-align: top; font-size: 13px; }
+.e-tabla tr.sin-vinculo td:first-child { color: var(--gris); }
+.e-sel { position: relative; }
+.e-boton { font-size: 12px; padding: 4px 8px; max-width: 220px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.e-boton.vacio { color: var(--gris); }
+.e-pop { position: absolute; z-index: 20; top: 100%; left: 0; background: #fff; border: 1px solid var(--borde); border-radius: 6px; box-shadow: 0 6px 20px rgba(0,0,0,.15); padding: 8px; max-height: 260px; overflow: auto; min-width: 220px; display: flex; flex-direction: column; gap: 4px; }
+.e-pop label { font-size: 12px; white-space: nowrap; display: flex; gap: 6px; align-items: center; }
