@@ -1,7 +1,9 @@
 // Panel de Control de Obra dentro del visor 3D de Trimble Connect.
 import { conectar, escuchar, ctx } from "./trimble.js";
 import { obra } from "./backend.js";
-import { LISTAS, sugerirLista } from "./obra/listas.js";
+import { LISTAS, sugerirLista, filasDe } from "./obra/listas.js";
+
+const ETIQUETA = { C: "C", NC: "NC", NA: "N/A", SI: "SÍ", NO: "NO" };
 import { leerSeleccion, colorear, comprimirFoto, COLORES, claveColor, achicarCaptura, hoyLocal } from "./obra/modelo.js";
 import * as panelLA from "./la/panel-visor.js";
 import * as anexos from "./obra/anexos.js";
@@ -67,7 +69,7 @@ async function cargarSeleccion(sel) {
   try {
     const r = await leerSeleccion(sel);
     Object.assign(st, { elementos: r.elementos, sinId: r.sinId, recortados: r.recortados });
-    if (!st.listaManual) cambiarLista(sugerirLista(r.elementos.map((e) => `${e.categoria} ${e.clase}`)));
+    if (!st.listaManual) cambiarLista(sugerirLista(r.elementos.map((e) => `${e.categoria} ${e.clase} ${e.nombre}`)));
     if (r.elementos.length === 1) cargarHistorial(r.elementos[0]);
   } catch (e) {
     aviso(`No se pudo leer la selección: ${e.message}`, "error");
@@ -164,14 +166,18 @@ function pintarFormulario() {
       <select id="v-lista">${LISTAS.map((l) => `<option ${st.lista && st.lista.nombre === l.nombre ? "selected" : ""}>${esc(l.nombre)}</option>`).join("")}
         <option value="" ${!st.lista ? "selected" : ""}>Sin lista (solo avance)</option>
       </select>
-      ${st.lista ? `<div class="chequeo">${st.lista.items.map((it, i) => `
+      ${st.lista ? `<div class="chequeo">${filasDe(st.lista).map((f, i) => f.dato ? `
+        <label class="item-dato"><span>${esc(f.texto)}</span>
+          <input data-dato="${i}" type="${f.dato === "fecha" ? "date" : f.dato === "numero" ? "number" : "text"}"
+            ${f.dato === "numero" ? 'inputmode="decimal" min="0" step="any" placeholder="psi"' : ""} value="${esc(st.resultados[i] || "")}"></label>` : `
         <div class="item-chequeo">
-          <span>${esc(it)}</span>
+          <span>${esc(f.texto)}</span>
           <div class="trio" data-item="${i}">
-            ${["C", "NC", "NA"].map((r) => `<button data-r="${r}" class="${st.resultados[i] === r ? "activo r-" + r : ""}">${r === "NA" ? "N/A" : r}</button>`).join("")}
+            ${f.opciones.map((r) => `<button data-r="${r}" class="${st.resultados[i] === r ? "activo r-" + r : ""}">${ETIQUETA[r]}</button>`).join("")}
           </div>
         </div>`).join("")}
         <button class="btn enlace" id="v-todo-c">Marcar todo conforme</button>
+        ${filasDe(st.lista).some((f) => f.dato) ? `<p class="tenue"><small>Los datos del ensayo pueden quedar en blanco y completarse cuando llegue el resultado, desde Control de Obra en el proyecto.</small></p>` : ""}
       </div>` : ""}
     </section>
 
@@ -216,13 +222,14 @@ function enlazar() {
     cambiarLista(LISTAS.find((l) => l.nombre === sel.value) || null);
     pintar();
   };
+  raiz.querySelectorAll("[data-dato]").forEach((inp) => (inp.oninput = () => (st.resultados[inp.dataset.dato] = inp.value)));
   raiz.querySelectorAll(".trio").forEach((t) => t.querySelectorAll("button").forEach((b) => (b.onclick = () => {
     const i = t.dataset.item;
     st.resultados[i] = st.resultados[i] === b.dataset.r ? undefined : b.dataset.r;
     pintar();
   })));
   const todo = raiz.querySelector("#v-todo-c");
-  if (todo) todo.onclick = () => { st.lista.items.forEach((_, i) => (st.resultados[i] = "C")); pintar(); };
+  if (todo) todo.onclick = () => { filasDe(st.lista).forEach((f, i) => { if (f.opciones?.includes("C")) st.resultados[i] = "C"; }); pintar(); };
   const fechaIn = raiz.querySelector("#v-fecha");
   if (fechaIn) fechaIn.onchange = () => (st.fecha = fechaIn.value || hoyLocal());
   const obs = raiz.querySelector("#v-obs");
@@ -265,7 +272,14 @@ async function aplicarColor(modo) {
 
 async function guardar() {
   if (!st.estado) return aviso("Indica el estado de ejecución.", "error");
-  const resultados = st.lista ? st.lista.items.map((item, i) => ({ item, resultado: st.resultados[i] })).filter((r) => r.resultado) : [];
+  // Las preguntas van con su respuesta; los datos del ensayo se guardan aunque estén vacíos si su
+  // pregunta se respondió, para poder completarlos cuando llegue el resultado del laboratorio.
+  const filas = filasDe(st.lista);
+  const respondida = (texto) => filas.some((f, i) => !f.dato && f.texto === texto && st.resultados[i]);
+  const resultados = filas.map((f, i) => f.dato
+    ? { item: f.texto, resultado: "DATO", tipo: f.dato, padre: f.padre, valor: String(st.resultados[i] || "").trim() }
+    : { item: f.texto, resultado: st.resultados[i] })
+    .filter((r) => r.resultado === "DATO" ? r.valor || respondida(r.padre) : r.resultado);
   if (resultados.some((r) => r.resultado === "NC") && !st.observaciones.trim()) {
     return aviso("Hay no conformidades: describe en observaciones qué se encontró.", "error");
   }
