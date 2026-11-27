@@ -214,9 +214,10 @@ async function pintarModelo() {
     // El edificio queda tenue para que se vean los volúmenes de los apartamentos.
     await v.setObjectState(undefined, { color: { r: 210, g: 214, b: 220, a: 50 } });
     const grupos = {};
+    let faltantes = 0;
     for (const u of propias) {
       const rt = visor.rt.get(u.object_id);
-      if (rt == null) continue;
+      if (rt == null) { faltantes++; continue; }
       (grupos[etapa(u).k] ||= []).push(rt);
     }
     for (const est of [DISPONIBLE, ...ESTADOS]) {
@@ -224,6 +225,7 @@ async function pintarModelo() {
       if (!ids) continue;
       await v.setObjectState({ modelObjectIds: [{ modelId: visor.modelo.id, objectRuntimeIds: ids }] }, { visible: true, color: hexARgba(est.color, 210) });
     }
+    if (faltantes) aviso(`${faltantes} apartamento(s) vinculado(s) ya no están en esta versión del modelo. Vuelve a vincularlos.`, "error");
   } catch (e) {
     aviso(`No se pudo pintar el modelo: ${e.message}`, "error");
   }
