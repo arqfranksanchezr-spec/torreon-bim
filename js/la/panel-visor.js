@@ -324,18 +324,23 @@ async function colorear(encendido, avisar = true) {
     if (!encendido) return;
     const modelos = await v.getModels("loaded");
     let pintados = 0;
+    let faltantes = 0;
     for (const m of modelos) {
       const propias = st.unidades.filter((u) => u.modelo_id === m.id && u.object_id);
       if (!propias.length) continue;
       const rts = await runtimeIds(m.id, propias.map((u) => u.object_id));
       const grupos = {};
-      propias.forEach((u, i) => { if (rts[i] != null) (grupos[etapa(u).color] ||= []).push(rts[i]); });
+      propias.forEach((u, i) => {
+        if (rts[i] == null) { faltantes++; return; }
+        (grupos[etapa(u).color] ||= []).push(rts[i]);
+      });
       for (const [color, ids] of Object.entries(grupos)) {
         await v.setObjectState({ modelObjectIds: [{ modelId: m.id, objectRuntimeIds: ids }] }, { color });
         pintados += ids.length;
       }
     }
     if (avisar) aviso(pintados ? `${pintados} apartamentos coloreados.` : "Ningún apartamento está vinculado a los modelos cargados.");
+    if (avisar && faltantes) aviso(`${faltantes} apartamento(s) vinculado(s) ya no están en esta versión del modelo. Vuelve a vincularlos.`, "error");
   } catch (e) {
     aviso(`No se pudo colorear: ${e.message}`, "error");
   }
