@@ -264,6 +264,7 @@ async function aplicarColor(modo) {
   try {
     const r = await colorear(modo, async (modeloIds) => (await obra("estado_modelos", { modeloIds })).elementos);
     if (modo) aviso(r.pintados ? `${r.pintados} elementos coloreados.` : "Todavía no hay revisiones en los modelos cargados.");
+    if (modo && r.faltantes) aviso(`${r.faltantes} elemento(s) revisado(s) ya no están en esta versión del modelo. Su historial se conserva.`, "error");
     if (modo === "estado" && r.pintados) guardarMiniatura();
   } catch (e) {
     aviso(`No se pudo colorear: ${e.message}`, "error");
