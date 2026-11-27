@@ -16,6 +16,12 @@ const CORS = {
 const HOST_VALIDO = /^https:\/\/app\d*\.connect\.trimble\.com\/tc\/api\/2\.0$/;
 const CARPETA_FOTOS = Deno.env.get("CARPETA_FOTOS_LA") ?? "L.A. - Fotos";
 const MAX_FOTOS = 8;
+// Correos que pueden modificar L.A., separados por coma (secreto LA_EDITORES en Supabase).
+// Si el secreto no existe, cualquier miembro del proyecto puede editar (comportamiento anterior).
+const EDITORES = (Deno.env.get("LA_EDITORES") ?? "")
+  .split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+const ACCIONES_ESCRITURA = new Set(["guardar_estado", "vincular_modelo", "importar", "vincular_objeto", "guardar_chequeo"]);
+const puedeEditar = (email: string) => !EDITORES.length || EDITORES.includes((email ?? "").toLowerCase());
 
 // Orden obligatorio de los estados
 const ESTADOS = ["separada", "vendida", "escriturada", "liberada", "entregada"] as const;
@@ -133,7 +139,7 @@ async function resumen(c: Ctx) {
     unidades.push(...(data ?? []));
     if (!data || data.length < 1000) break;
   }
-  return { yo: c.yo, unidades };
+  return { yo: c.yo, puedeEditar: puedeEditar(c.yo.email), unidades };
 }
 
 async function historial(c: Ctx, b: { unidadId: string }) {
@@ -335,6 +341,9 @@ Deno.serve(async (req) => {
     const base = { token, host };
     const [me] = await Promise.all([tc(base, "/users/me"), tc(base, `/projects/${projectId}`)]);
     const yo: Usuario = { email: me.email, nombre: `${me.firstName ?? ""} ${me.lastName ?? ""}`.trim() || me.email };
+    if (ACCIONES_ESCRITURA.has(accion) && !puedeEditar(yo.email)) {
+      throw new ErrorCliente("No tienes permiso para modificar L.A. Pide acceso al administrador BIM.", 403);
+    }
 
     return json(await fn({ token, host, projectId, yo }, cuerpo));
   } catch (e) {
