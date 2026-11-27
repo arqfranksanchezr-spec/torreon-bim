@@ -16,12 +16,6 @@ const CORS = {
 const HOST_VALIDO = /^https:\/\/app\d*\.connect\.trimble\.com\/tc\/api\/2\.0$/;
 const CARPETA_FOTOS = Deno.env.get("CARPETA_FOTOS_LA") ?? "L.A. - Fotos";
 const MAX_FOTOS = 8;
-// Correos que pueden modificar L.A., separados por coma (secreto LA_EDITORES en Supabase).
-// Si el secreto no existe, cualquier miembro del proyecto puede editar (comportamiento anterior).
-const EDITORES = (Deno.env.get("LA_EDITORES") ?? "")
-  .split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
-const ACCIONES_ESCRITURA = new Set(["guardar_estado", "vincular_modelo", "importar", "vincular_objeto", "guardar_chequeo"]);
-const puedeEditar = (email: string) => !EDITORES.length || EDITORES.includes((email ?? "").toLowerCase());
 
 // Orden obligatorio de los estados
 const ESTADOS = ["separada", "vendida", "escriturada", "liberada", "entregada"] as const;
@@ -139,7 +133,7 @@ async function resumen(c: Ctx) {
     unidades.push(...(data ?? []));
     if (!data || data.length < 1000) break;
   }
-  return { yo: c.yo, puedeEditar: puedeEditar(c.yo.email), unidades };
+  return { yo: c.yo, unidades };
 }
 
 async function historial(c: Ctx, b: { unidadId: string }) {
@@ -325,6 +319,39 @@ const ACCIONES: Record<string, (c: Ctx, b: any) => Promise<unknown>> = {
   vincular_objeto: vincularObjeto, guardar_chequeo: guardarChequeo, chequeos,
 };
 
+// ---------------------------------------------------------------- permisos desde Trimble Connect
+// Pueden modificar L.A.: los administradores del proyecto y los miembros del grupo de Trimble Connect
+// llamado GRUPO_EDITORES (se crea en la página Team del proyecto). Si el grupo no existe en un proyecto,
+// cualquier miembro puede modificar, como antes. El nombre se puede cambiar con el secreto GRUPO_LA.
+const GRUPO_EDITORES = Deno.env.get("GRUPO_LA") ?? "L.A. Editores";
+const ACCIONES_ESCRITURA = new Set(["guardar_estado", "vincular_modelo", "importar", "vincular_objeto", "guardar_chequeo"]);
+const normalizar = (t: unknown) =>
+  String(t ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLowerCase();
+const lista = (r: any): any[] => (Array.isArray(r) ? r : r?.items ?? r?.data ?? []);
+
+type InfoPermisos = { puedeEditar: boolean; admin: boolean; grupo: string; grupoExiste: boolean; enGrupo: boolean };
+
+async function permisos(base: Pick<Ctx, "token" | "host">, projectId: string, me: { id?: string; email?: string }): Promise<InfoPermisos> {
+  const info: InfoPermisos = { puedeEditar: false, admin: false, grupo: GRUPO_EDITORES, grupoExiste: false, enGrupo: false };
+  if (me.id) {
+    try {
+      const u = await tc(base, `/projects/${projectId}/users/${me.id}`);
+      info.admin = /admin/i.test(String(u.role ?? u.projectRole ?? ""));
+    } catch (_) { /* si no se puede leer el rol, decide el grupo */ }
+  }
+  if (info.admin) { info.puedeEditar = true; return info; }
+  const grupo = lista(await tc(base, `/groups?projectId=${encodeURIComponent(projectId)}`))
+    .find((g) => normalizar(g.name) === normalizar(GRUPO_EDITORES));
+  if (grupo) {
+    info.grupoExiste = true;
+    const email = normalizar(me.email);
+    info.enGrupo = lista(await tc(base, `/groups/${grupo.id}/users`)).some((m) =>
+      (me.id && (m.id === me.id || m.userId === me.id || m.tiduuid === me.id)) || (email && normalizar(m.email) === email));
+  }
+  info.puedeEditar = info.admin || !info.grupoExiste || info.enGrupo;
+  return info;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ error: "Método no permitido" }, 405);
@@ -336,13 +363,17 @@ Deno.serve(async (req) => {
     if (!projectId || typeof projectId !== "string") throw new ErrorCliente("Falta el proyecto");
     if (!HOST_VALIDO.test(host ?? "")) throw new ErrorCliente("Región de Trimble no válida");
     const fn = ACCIONES[accion];
-    if (!fn) throw new ErrorCliente(`Acción desconocida: ${accion}`);
+    if (!fn && accion !== "permisos") throw new ErrorCliente(`Acción desconocida: ${accion}`);
 
     const base = { token, host };
     const [me] = await Promise.all([tc(base, "/users/me"), tc(base, `/projects/${projectId}`)]);
     const yo: Usuario = { email: me.email, nombre: `${me.firstName ?? ""} ${me.lastName ?? ""}`.trim() || me.email };
-    if (ACCIONES_ESCRITURA.has(accion) && !puedeEditar(yo.email)) {
-      throw new ErrorCliente("No tienes permiso para modificar L.A. Pide acceso al administrador BIM.", 403);
+    if (accion === "permisos") return json(await permisos(base, projectId, me));
+    if (ACCIONES_ESCRITURA.has(accion)) {
+      const p = await permisos(base, projectId, me);
+      if (!p.puedeEditar) {
+        throw new ErrorCliente(`No tienes permiso para modificar L.A. Pide que te agreguen al grupo "${p.grupo}" en Trimble Connect.`, 403);
+      }
     }
 
     return json(await fn({ token, host, projectId, yo }, cuerpo));
