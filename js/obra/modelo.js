@@ -105,11 +105,12 @@ export function claveColor(modo, e) {
 export async function colorear(modo, pedirEstados) {
   const v = ctx.api.viewer;
   await v.setObjectState(undefined, { color: "reset" });
-  if (!modo) return { pintados: 0 };
+  if (!modo) return { pintados: 0, faltantes: 0 };
   const modelos = await v.getModels("loaded");
-  if (!modelos.length) return { pintados: 0 };
+  if (!modelos.length) return { pintados: 0, faltantes: 0 };
   const estados = await pedirEstados(modelos.map((m) => m.id));
   let pintados = 0;
+  let faltantes = 0; // revisados que ya no están en la versión cargada
   for (const m of modelos) {
     const propios = estados.filter((e) => e.modelo_id === m.id);
     if (!propios.length) continue;
@@ -117,7 +118,7 @@ export async function colorear(modo, pedirEstados) {
     for (const parte of trozos(propios, 5000)) {
       const rts = await v.convertToObjectRuntimeIds(m.id, parte.map((e) => e.object_id));
       parte.forEach((e, i) => {
-        if (rts[i] == null) return;
+        if (rts[i] == null) { faltantes++; return; }
         const k = claveColor(modo, e);
         (porColor[k] ||= []).push(rts[i]);
       });
@@ -127,7 +128,7 @@ export async function colorear(modo, pedirEstados) {
       pintados += ids.length;
     }
   }
-  return { pintados };
+  return { pintados, faltantes };
 }
 
 // Reduce una foto a 1600 px de lado mayor en JPEG para que suba rápido desde la obra.
